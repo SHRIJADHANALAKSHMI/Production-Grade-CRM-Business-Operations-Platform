@@ -81,6 +81,34 @@ export const updateTask = async (req, res) => {
     }
 };
 
+// @desc    Delete a task
+// @route   DELETE /api/tasks/:id
+// @access  Private
+export const deleteTask = async (req, res) => {
+    try {
+        const task = await Task.findById(req.params.id);
+        if (!task) return res.status(404).json({ success: false, message: "Task not found" });
+
+        const projectId = task.project || task.projectId;
+        await Task.deleteOne({ _id: task._id });
+
+        await Project.findByIdAndUpdate(projectId, { $pull: { tasks: task._id } });
+
+        await Activity.create({
+            projectId: projectId,
+            action: "task_deleted",
+            description: `Deleted task "${task.title}"`,
+            createdBy: req.user.id
+        });
+
+        await updateProjectProgress(projectId);
+
+        res.status(200).json({ success: true, message: "Task removed" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message, data: null });
+    }
+};
+
 // Helper: Auto-recalculate project progress based on tasks
 const updateProjectProgress = async (projectId) => {
     const allTasks = await Task.find({ $or: [{ project: projectId }, { projectId: projectId }] });
