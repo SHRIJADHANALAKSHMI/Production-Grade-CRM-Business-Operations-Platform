@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+const baseURL = import.meta.env.VITE_API_URL || "https://production-grade-crm-business-operations.onrender.com/api";
+console.log("CRITICAL DEBUG: Active API Base URL is ->", baseURL);
+
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || "https://production-grade-crm-business-operations.onrender.com/api",
+    baseURL,
     withCredentials: true
 });
 

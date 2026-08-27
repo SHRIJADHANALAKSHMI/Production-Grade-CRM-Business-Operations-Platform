@@ -14,11 +14,11 @@ const Navbar = () => {
 
                 {/* Center: Links (Hidden on small screens) */}
                 <div className="hidden md:flex items-center gap-8 font-medium text-slate-600">
-                    <a href="#features" className="hover:text-purple-600 transition-colors">Features</a>
-                    <a href="#solutions" className="hover:text-purple-600 transition-colors">Solutions</a>
-                    <a href="#pricing" className="hover:text-purple-600 transition-colors">Pricing</a>
-                    <a href="#about" className="hover:text-purple-600 transition-colors">About</a>
-                    <a href="#contact" className="hover:text-purple-600 transition-colors">Contact</a>
+                    <button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-purple-600 transition-colors">Features</button>
+                    <button onClick={() => document.getElementById('solutions')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-purple-600 transition-colors">Solutions</button>
+                    <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-purple-600 transition-colors">Pricing</button>
+                    <button onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-purple-600 transition-colors">About</button>
+                    <button onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-purple-600 transition-colors">Contact</button>
                 </div>
 
                 {/* Right: Auth Buttons */}

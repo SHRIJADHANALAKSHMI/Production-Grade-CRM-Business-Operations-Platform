@@ -7,6 +7,7 @@ import api from '../../services/api.js';
 const AppNavbar = () => {
     const { user, logout, notifications, markNotificationRead } = useContext(AuthContext);
     const [showNotifs, setShowNotifs] = useState(false);
+    const [showProfileDrop, setShowProfileDrop] = useState(false);
 
     // Search
     const [searchQuery, setSearchQuery] = useState("");
@@ -117,14 +118,30 @@ const AppNavbar = () => {
                     )}
                 </div>
 
-                <div className="flex items-center gap-3 border-l border-slate-200 pl-6 cursor-pointer group">
-                    <div className="text-right hidden sm:block">
-                        <p className="text-sm font-bold text-slate-800 leading-none">{user?.name || 'Jane Doe'}</p>
-                        <p className="text-[10px] font-bold text-purple-600 uppercase tracking-wider mt-1">{user?.role || 'Admin'}</p>
+                {/* Profile Dropdown Container */}
+                <div className="relative border-l border-slate-200 pl-6">
+                    <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setShowProfileDrop(!showProfileDrop)}>
+                        <div className="text-right hidden sm:block">
+                            <p className="text-sm font-bold text-slate-800 leading-none">{user?.name || 'Jane Doe'}</p>
+                            <p className="text-[10px] font-bold text-purple-600 uppercase tracking-wider mt-1">{user?.role || 'Admin'}</p>
+                        </div>
+                        <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold border border-purple-200 shadow-sm">
+                            {user?.name ? user.name.charAt(0).toUpperCase() : <User size={18} />}
+                        </div>
                     </div>
-                    <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold border border-purple-200 shadow-sm">
-                        {user?.name ? user.name.charAt(0).toUpperCase() : <User size={18} />}
-                    </div>
+
+                    {showProfileDrop && (
+                        <div className="absolute top-12 right-0 w-48 bg-white border border-slate-200 shadow-xl rounded-xl overflow-hidden flex flex-col z-50">
+                            <div className="p-3 border-b border-slate-100 bg-slate-50/50 block sm:hidden">
+                                <p className="text-sm font-bold text-slate-800 leading-none">{user?.name}</p>
+                                <p className="text-[10px] font-bold text-purple-600 uppercase tracking-wider mt-1">{user?.role}</p>
+                            </div>
+                            <button onClick={() => { setShowProfileDrop(false); navigate('/settings'); }} className="text-left px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-purple-600 w-full transition">My Profile</button>
+                            <button onClick={() => { setShowProfileDrop(false); navigate('/settings'); }} className="text-left px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-purple-600 w-full transition">Settings</button>
+                            <div className="h-px bg-slate-100 w-full"></div>
+                            <button onClick={() => { setShowProfileDrop(false); logout(); navigate('/'); }} className="text-left px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 w-full transition">Logout</button>
+                        </div>
+                    )}
                 </div>
             </div>
         </header>

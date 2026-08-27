@@ -1,14 +1,19 @@
 import express from "express";
-import { getProjects, getProjectById, updateProject } from "../controllers/projectController.js";
-import { protect } from "../middleware/auth.js";
+import { getProjects, getProjectById, createProject, updateProject, deleteProject, getProjectTasks } from "../controllers/projectController.js";
+import { protect, authorize } from "../middleware/auth.js";
 
 const router = express.Router();
 
 router.route("/")
-    .get(protect, getProjects);
+    .get(protect, authorize("Admin", "Manager", "Sales"), getProjects)
+    .post(protect, authorize("Admin", "Manager"), createProject);
 
 router.route("/:id")
-    .get(protect, getProjectById)
-    .put(protect, updateProject);
+    .get(protect, authorize("Admin", "Manager", "Sales"), getProjectById)
+    .put(protect, authorize("Admin", "Manager"), updateProject)
+    .delete(protect, authorize("Admin", "Manager"), deleteProject);
+
+router.route("/:id/tasks")
+    .get(protect, authorize("Admin", "Manager", "Sales"), getProjectTasks);
 
 export default router;

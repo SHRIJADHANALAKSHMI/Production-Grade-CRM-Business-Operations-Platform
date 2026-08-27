@@ -1,17 +1,19 @@
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCheck, Briefcase, Settings, LogOut } from 'lucide-react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Users, UserCheck, Briefcase, Settings, LogOut, BarChart3, Inbox, Folders } from 'lucide-react';
 import { useContext } from 'react';
 import AuthContext from '../../context/AuthContext.jsx';
 
 const Sidebar = () => {
-    const { logout } = useContext(AuthContext);
+    const { logout, user } = useContext(AuthContext);
+    const location = useLocation();
+    const navigate = useNavigate();
 
-    const navItems = [
-        { name: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/dashboard' },
-        { name: 'Leads', icon: <Users size={20} />, path: '/leads' },
-        { name: 'Clients', icon: <UserCheck size={20} />, path: '/clients' },
-        { name: 'Projects', icon: <Briefcase size={20} />, path: '/projects' },
-        { name: 'Settings', icon: <Settings size={20} />, path: '/settings' },
+    const sidebarNav = [
+        { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ['Admin', 'Manager'] },
+        { name: 'Leads', icon: Inbox, path: '/leads', roles: ['Admin', 'Manager', 'Sales'] },
+        { name: 'Clients', icon: UserCheck, path: '/clients', roles: ['Admin', 'Manager', 'Sales'] },
+        { name: 'Projects', icon: Briefcase, path: '/projects', roles: ['Admin', 'Manager', 'Sales'] },
+        { name: 'Settings', icon: Settings, path: '/settings', roles: ['Admin'] },
     ];
 
     return (
@@ -27,22 +29,25 @@ const Sidebar = () => {
 
             <nav className="flex-1 overflow-y-auto py-6">
                 <ul className="space-y-2 px-4">
-                    {navItems.map((item) => (
-                        <li key={item.name}>
-                            <NavLink
-                                to={item.path}
-                                className={({ isActive }) =>
-                                    `flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${isActive
-                                        ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
-                                        : 'hover:bg-slate-800 hover:text-white'
-                                    }`
-                                }
-                            >
-                                {item.icon}
-                                <span>{item.name}</span>
-                            </NavLink>
-                        </li>
-                    ))}
+                    {sidebarNav.filter(nav => nav.roles.includes(user?.role || 'Admin')).map((item) => {
+                        const Icon = item.icon;
+                        return (
+                            <li key={item.name}>
+                                <NavLink
+                                    to={item.path}
+                                    className={({ isActive }) =>
+                                        `flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${isActive
+                                            ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
+                                            : 'hover:bg-slate-800 hover:text-white'
+                                        }`
+                                    }
+                                >
+                                    <Icon size={20} />
+                                    <span>{item.name}</span>
+                                </NavLink>
+                            </li>
+                        );
+                    })}
                 </ul>
             </nav>
 
