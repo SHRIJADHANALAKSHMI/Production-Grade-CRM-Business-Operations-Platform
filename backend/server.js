@@ -21,7 +21,17 @@ connectDB();
 const app = express();
 
 app.use(cors({
-    origin: "http://localhost:3001",
+    origin: function (origin, callback) {
+        const allowedOrigins = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : [
+            "http://localhost:3001", "http://localhost:5173", "http://localhost:3000"
+        ];
+        // Allow if origin is whitelisted, or dynamically allow Vercel previews if no strict list provided
+        if (!origin || allowedOrigins.includes(origin) || !process.env.FRONTEND_URL) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"]
