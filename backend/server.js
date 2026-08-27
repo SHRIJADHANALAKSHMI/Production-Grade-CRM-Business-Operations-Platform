@@ -1,15 +1,16 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import connectDB from "./config/db.js";
+import connectDB from "./src/config/db.js";
+
+import authRoutes from "./src/routes/authRoutes.js";
+import leadRoutes from "./src/routes/leadRoutes.js";
+import clientRoutes from "./src/routes/clientRoutes.js";
+import dashboardRoutes from "./src/routes/dashboardRoutes.js";
+import { errorHandler } from "./src/middleware/errorMiddleware.js";
 
 dotenv.config();
 connectDB();
-
-import authRoutes from "./routes/authRoutes.js";
-import leadRoutes from "./routes/leadRoutes.js";
-import clientRoutes from "./routes/clientRoutes.js";
-import dashboardRoutes from "./routes/dashboardRoutes.js";
 
 const app = express();
 
@@ -23,11 +24,12 @@ app.use("/api/clients", clientRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 
 // Basic Route
-app.get("/", (req, res) => {
-    res.send("CRM API is running...");
+app.get("/api/test", (req, res) => {
+    res.status(200).json({ message: "API is running successfully" });
 });
 
-// We will import and use routes here
+// Error handling middleware
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

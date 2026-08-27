@@ -1,11 +1,10 @@
 import mongoose from "mongoose";
 
 const clientSchema = new mongoose.Schema({
-    company: { type: String, required: true },
+    name: { type: String, required: true },
     email: { type: String, required: true },
     phone: { type: String },
-    convertedDate: { type: Date, default: Date.now },
-    projectsCount: { type: Number, default: 1 }
+    convertedFrom: { type: mongoose.Schema.Types.ObjectId, ref: "Lead" }
 }, { timestamps: true });
 
 export default mongoose.model("Client", clientSchema);
