@@ -42,8 +42,8 @@ function AppRoutes() {
                 }}
             />
             <Routes>
-                <Route path="/" element={user ? (user.role === 'Sales' ? <Navigate to="/leads" replace /> : <Navigate to="/dashboard" replace />) : <LandingPage />} />
-                <Route path="/register" element={user ? (user.role === 'Sales' ? <Navigate to="/leads" replace /> : <Navigate to="/dashboard" replace />) : <RegisterPage />} />
+                <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+                <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
                 <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
                 <Route path="/leads" element={<PrivateRoute><Leads /></PrivateRoute>} />
                 <Route path="/clients" element={<PrivateRoute><Clients /></PrivateRoute>} />

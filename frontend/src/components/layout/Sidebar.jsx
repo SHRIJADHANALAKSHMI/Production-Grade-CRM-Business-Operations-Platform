@@ -9,7 +9,7 @@ const Sidebar = () => {
     const navigate = useNavigate();
 
     const sidebarNav = [
-        { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ['Admin', 'Manager'] },
+        { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ['Admin', 'Manager', 'Sales'] },
         { name: 'Leads', icon: Inbox, path: '/leads', roles: ['Admin', 'Manager', 'Sales'] },
         { name: 'Clients', icon: UserCheck, path: '/clients', roles: ['Admin', 'Manager', 'Sales'] },
         { name: 'Projects', icon: Briefcase, path: '/projects', roles: ['Admin', 'Manager', 'Sales'] },
