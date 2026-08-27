@@ -11,13 +11,14 @@ const RegisterPage = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [role, setRole] = useState('Sales');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
             setIsLoading(true);
-            await api.post('/auth/register', { name, email, password, role: 'Sales' });
+            await api.post('/auth/register', { name, email, password, role });
 
             toast.success('Registration successful! Please login.');
             navigate('/');
@@ -75,6 +76,19 @@ const RegisterPage = () => {
                                 className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all font-medium bg-slate-50/50"
                                 placeholder="••••••••"
                             />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1.5">Role</label>
+                            <select
+                                value={role}
+                                onChange={(e) => setRole(e.target.value)}
+                                className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all font-medium bg-slate-50/50 cursor-pointer"
+                            >
+                                <option value="Sales">Sales</option>
+                                <option value="Manager">Manager</option>
+                                <option value="Admin">Admin</option>
+                            </select>
                         </div>
 
                         <button
