@@ -1,11 +1,31 @@
 import { useEffect, useState, useContext } from 'react';
 import api from '../services/api.js';
 import AuthContext from '../context/AuthContext.jsx';
-import {
-    PlusCircle, ArrowRightCircle, User, Search, Filter,
-    Trash2, ChevronLeft, ChevronRight, Mail, Phone, Loader2, FileX
-} from 'lucide-react';
+import { PlusCircle, ArrowRightCircle, User, Search, Filter, Trash2, ChevronLeft, ChevronRight, Mail, Phone, Loader2, FileX, Calendar, StickyNote, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+const STAGE_STYLES = {
+    new: 'bg-slate-100 text-slate-700',
+    contacted: 'bg-blue-100 text-blue-700',
+    interested: 'bg-yellow-100 text-yellow-700',
+    proposal: 'bg-purple-100 text-purple-700',
+    won: 'bg-emerald-100 text-emerald-700',
+    lost: 'bg-red-100 text-red-700',
+};
+
+const STATUS_STYLES = {
+    new: 'bg-purple-100 text-purple-800 border-purple-200',
+    contacted: 'bg-orange-100 text-orange-800 border-orange-200',
+    converted: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+};
+
+const isOverdue = (date) => date && new Date(date) < new Date(new Date().setHours(0, 0, 0, 0));
+const isDueToday = (date) => {
+    if (!date) return false;
+    const d = new Date(date);
+    const today = new Date();
+    return d.toDateString() === today.toDateString();
+};
 
 const Leads = () => {
     const { user } = useContext(AuthContext);
@@ -13,30 +33,42 @@ const Leads = () => {
 
     const [leads, setLeads] = useState([]);
     const [showAdd, setShowAdd] = useState(false);
-    const [newLead, setNewLead] = useState({ name: '', email: '', phone: '' });
+    const [editingLead, setEditingLead] = useState(null); // for notes/followup modal
+    const [newLead, setNewLead] = useState({ name: '', email: '', phone: '', notes: '', nextFollowUpDate: '', dealValue: '', expectedCloseDate: '' });
 
-    // UI State
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [actionLoading, setActionLoading] = useState(null); // track leadId
+    const [actionLoading, setActionLoading] = useState(null);
 
-    // Filters, Search, Pagination
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [stageFilter, setStageFilter] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 6;
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalLeads, setTotalLeads] = useState(0);
+    const itemsPerPage = 8;
 
-    useEffect(() => {
-        fetchLeads();
-    }, []);
+    useEffect(() => { fetchLeads(); }, [currentPage, searchQuery, statusFilter, stageFilter]);
 
     const fetchLeads = async () => {
         try {
             setIsLoading(true);
-            const res = await api.get('/leads');
-            setLeads(res.data.data.reverse()); // latest first
+            // Construct explicitly as requested
+            let url = `/leads?page=${currentPage}&limit=${itemsPerPage}`;
+            if (statusFilter !== 'all') url += `&status=${statusFilter}`;
+            if (stageFilter !== 'all') url += `&stage=${stageFilter}`;
+            if (searchQuery) url += `&search=${searchQuery}`;
+
+            const res = await api.get(url);
+            console.log("API response:", res.data); // Debug log from spec
+
+            setLeads(res.data.data);
+            if (res.data.pagination) {
+                setTotalPages(res.data.pagination.pages);
+                setTotalLeads(res.data.pagination.total);
+            }
         } catch (error) {
-            console.error('Error fetching leads:', error);
+            toast.error('Failed to load leads');
         } finally {
             setIsLoading(false);
         }
@@ -47,9 +79,9 @@ const Leads = () => {
         try {
             setIsSubmitting(true);
             await api.post('/leads', newLead);
-            toast.success('Lead added successfully!');
+            toast.success('Lead created successfully!');
             setShowAdd(false);
-            setNewLead({ name: '', email: '', phone: '' });
+            setNewLead({ name: '', email: '', phone: '', notes: '', nextFollowUpDate: '', dealValue: '', expectedCloseDate: '' });
             fetchLeads();
         } catch (error) {
             toast.error(error.message);
@@ -62,7 +94,7 @@ const Leads = () => {
         try {
             setActionLoading(`convert-${leadId}`);
             await api.post(`/leads/${leadId}/convert`);
-            toast.success('Lead converted to client!');
+            toast.success('Lead converted to client! 🎉');
             fetchLeads();
         } catch (error) {
             toast.error(error.message);
@@ -75,7 +107,7 @@ const Leads = () => {
         try {
             setActionLoading(`status-${leadId}`);
             await api.patch(`/leads/${leadId}`, { status: newStatus });
-            setLeads(leads.map(l => l._id === leadId ? { ...l, status: newStatus } : l));
+            setLeads(prev => prev.map(l => l._id === leadId ? { ...l, status: newStatus } : l));
         } catch (error) {
             toast.error('Failed to update status');
         } finally {
@@ -83,13 +115,43 @@ const Leads = () => {
         }
     };
 
+    const handleStageChange = async (leadId, newStage) => {
+        try {
+            setActionLoading(`stage-${leadId}`);
+            await api.patch(`/leads/${leadId}`, { stage: newStage });
+            setLeads(prev => prev.map(l => l._id === leadId ? { ...l, stage: newStage } : l));
+        } catch (error) {
+            toast.error('Failed to update stage');
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleSaveNotes = async () => {
+        if (!editingLead) return;
+        try {
+            setIsSubmitting(true);
+            await api.patch(`/leads/${editingLead._id}`, {
+                notes: editingLead.notes,
+                nextFollowUpDate: editingLead.nextFollowUpDate || null
+            });
+            toast.success('Follow-up saved!');
+            setLeads(prev => prev.map(l => l._id === editingLead._id ? { ...l, ...editingLead } : l));
+            setEditingLead(null);
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const handleDelete = async (leadId) => {
-        if (!window.confirm("Are you sure you want to permanently delete this lead?")) return;
+        if (!window.confirm('Permanently delete this lead?')) return;
         try {
             setActionLoading(`delete-${leadId}`);
             await api.delete(`/leads/${leadId}`);
-            setLeads(leads.filter(l => l._id !== leadId));
             toast.success('Lead deleted.');
+            fetchLeads(); // explicitly refetch leads after delete
         } catch (error) {
             toast.error(error.message);
         } finally {
@@ -97,217 +159,238 @@ const Leads = () => {
         }
     };
 
-    // Applied Filters locally
-    const filteredLeads = leads.filter(lead => {
-        const matchesSearch = lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            lead.email.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
-        return matchesSearch && matchesStatus;
-    });
-
-    // Calculate Pagination
-    const totalPages = Math.ceil(filteredLeads.length / itemsPerPage) || 1;
-    const paginatedLeads = filteredLeads.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-    // Pagination Handlers
-    const handlePrev = () => setCurrentPage(p => Math.max(1, p - 1));
-    const handleNext = () => setCurrentPage(p => Math.min(totalPages, p + 1));
-
-    // Reset page when filters change
-    useEffect(() => { setCurrentPage(1); }, [searchQuery, statusFilter]);
+    // Backend pagination applied. No local filtering array needed.
 
     const SkeletonRow = () => (
         <tr className="animate-pulse bg-white">
-            <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div><div className="h-3 bg-slate-100 rounded w-1/2"></div></td>
-            <td className="px-6 py-4"><div className="h-6 bg-slate-200 rounded-full w-24"></div></td>
-            <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
-            <td className="px-6 py-4"><div className="h-8 bg-slate-200 rounded w-full"></div></td>
+            {[1, 2, 3, 4, 5].map(i => <td key={i} className="px-5 py-4"><div className="h-4 bg-slate-200 rounded w-3/4"></div></td>)}
         </tr>
     );
 
     return (
-        <div className="max-w-7xl mx-auto py-8">
-            {/* Header Area */}
+        <div className="pb-12">
+            {/* Notes / Follow-Up Modal */}
+            {editingLead && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-slate-800">Follow-Up: {editingLead.name}</h3>
+                            <button onClick={() => setEditingLead(null)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"><X size={20} /></button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1">Notes</label>
+                                <textarea rows={4} className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm resize-none"
+                                    value={editingLead.notes || ''} onChange={e => setEditingLead({ ...editingLead, notes: e.target.value })}
+                                    placeholder="Add notes about this lead..." />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1">Next Follow-Up Date</label>
+                                <input type="date" className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm"
+                                    value={editingLead.nextFollowUpDate ? new Date(editingLead.nextFollowUpDate).toISOString().split('T')[0] : ''}
+                                    onChange={e => setEditingLead({ ...editingLead, nextFollowUpDate: e.target.value })} />
+                            </div>
+                            <button onClick={handleSaveNotes} disabled={isSubmitting}
+                                className="w-full bg-purple-600 text-white py-2.5 rounded-xl font-semibold hover:bg-purple-700 transition disabled:opacity-50 flex items-center justify-center gap-2">
+                                {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : 'Save Follow-Up'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-800">Leads Pipeline</h1>
-                    <p className="text-sm text-slate-500 mt-1">Manage, filter, and convert your active pipeline.</p>
+                    <h1 className="text-2xl font-bold text-slate-800">Leads Pipeline</h1>
+                    <p className="text-sm text-slate-500 mt-1">Manage, filter, and convert your active leads.</p>
                 </div>
-                <button onClick={() => setShowAdd(!showAdd)} className="flex items-center space-x-2 bg-purple-600 text-white px-5 py-2.5 rounded-xl hover:bg-purple-700 transition shadow-sm font-medium">
-                    <PlusCircle size={20} /> <span>New Lead</span>
+                <button onClick={() => setShowAdd(!showAdd)} className="flex items-center gap-2 bg-purple-600 text-white px-5 py-2.5 rounded-xl hover:bg-purple-700 transition shadow-sm font-semibold">
+                    <PlusCircle size={18} /> New Lead
                 </button>
             </div>
 
-            {/* Add Form */}
+            {/* Add Lead Form */}
             {showAdd && (
-                <form onSubmit={handleAddLead} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4">
-                    <input type="text" placeholder="Full Name" required value={newLead.name} onChange={e => setNewLead({ ...newLead, name: e.target.value })} className="p-3 border rounded-xl focus:ring-2 focus:ring-purple-500" disabled={isSubmitting} />
-                    <input type="email" placeholder="Email Address" required value={newLead.email} onChange={e => setNewLead({ ...newLead, email: e.target.value })} className="p-3 border rounded-xl focus:ring-2 focus:ring-purple-500" disabled={isSubmitting} />
-                    <div className="flex space-x-3 md:col-span-2">
-                        <input type="text" placeholder="Phone Number" value={newLead.phone} onChange={e => setNewLead({ ...newLead, phone: e.target.value })} className="p-3 border rounded-xl focus:ring-2 focus:ring-purple-500 w-full" disabled={isSubmitting} />
-                        <button type="submit" disabled={isSubmitting} className="bg-emerald-600 flex items-center justify-center font-semibold text-white px-8 py-2 rounded-xl hover:bg-emerald-700 disabled:opacity-50">
-                            {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : 'Save Lead'}
-                        </button>
-                    </div>
+                <form onSubmit={handleAddLead} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <input type="text" placeholder="Full Name *" required value={newLead.name} onChange={e => setNewLead({ ...newLead, name: e.target.value })} className="p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm" disabled={isSubmitting} />
+                    <input type="email" placeholder="Email Address *" required value={newLead.email} onChange={e => setNewLead({ ...newLead, email: e.target.value })} className="p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm" disabled={isSubmitting} />
+                    <input type="text" placeholder="Phone Number" value={newLead.phone} onChange={e => setNewLead({ ...newLead, phone: e.target.value })} className="p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm" disabled={isSubmitting} />
+                    <input type="number" placeholder="Deal Value ($)" value={newLead.dealValue} onChange={e => setNewLead({ ...newLead, dealValue: e.target.value })} className="p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm" disabled={isSubmitting} />
+                    <input type="date" placeholder="Expected Close Date" title="Expected Close Date" value={newLead.expectedCloseDate} onChange={e => setNewLead({ ...newLead, expectedCloseDate: e.target.value })} className="p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm" disabled={isSubmitting} />
+                    <input type="date" placeholder="Follow-Up Date" title="Follow-Up Date" value={newLead.nextFollowUpDate} onChange={e => setNewLead({ ...newLead, nextFollowUpDate: e.target.value })} className="p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm" disabled={isSubmitting} />
+                    <textarea placeholder="Initial notes..." value={newLead.notes} onChange={e => setNewLead({ ...newLead, notes: e.target.value })} rows={1} className="p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm resize-none" disabled={isSubmitting} />
+                    <button type="submit" disabled={isSubmitting} className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition disabled:opacity-50 flex items-center justify-center gap-2">
+                        {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <><PlusCircle size={18} /> Save Lead</>}
+                    </button>
                 </form>
             )}
 
-            {/* SaaS Toolbar */}
-            <div className="bg-white p-4 rounded-t-2xl border border-b-0 border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center bg-slate-50">
-                <div className="relative w-full md:w-96">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Search leads by name or email..."
-                        className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+            {/* Toolbar */}
+            <div className="bg-slate-50 border border-b-0 border-slate-200 rounded-t-2xl p-4 flex flex-wrap gap-3 items-center justify-between">
+                <div className="relative flex-1 min-w-[200px] max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input type="text" placeholder="Search by name or email..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white" />
                 </div>
-                <div className="flex items-center space-x-2 w-full md:w-auto">
-                    <Filter className="text-slate-400" size={18} />
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="w-full md:w-auto border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                    >
+                <div className="flex items-center gap-3 flex-wrap">
+                    <Filter size={16} className="text-slate-400" />
+                    <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-400">
                         <option value="all">All Statuses</option>
                         <option value="new">New</option>
                         <option value="contacted">Contacted</option>
                         <option value="converted">Converted</option>
                     </select>
+                    <select value={stageFilter} onChange={e => setStageFilter(e.target.value)} className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-400">
+                        <option value="all">All Stages</option>
+                        <option value="new">New</option>
+                        <option value="contacted">Contacted</option>
+                        <option value="qualified">Qualified</option>
+                        <option value="interested">Interested</option>
+                        <option value="proposal">Proposal</option>
+                        <option value="won">Won</option>
+                        <option value="lost">Lost</option>
+                    </select>
                 </div>
             </div>
 
-            {/* Main SaaS Table */}
+            {/* Table */}
             <div className="bg-white rounded-b-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-100">
+                    <table className="min-w-full divide-y divide-slate-100">
+                        <thead className="bg-slate-50">
                             <tr>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Lead Info</th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Pipeline Status</th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Assigned Rep</th>
-                                <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
+                                <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Lead</th>
+                                <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Deal Value</th>
+                                <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Stage</th>
+                                <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                                <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Follow-Up</th>
+                                <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Assigned</th>
+                                <th className="px-5 py-3.5 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 relative">
+                        <tbody className="divide-y divide-slate-50">
                             {isLoading ? (
-                                <>
-                                    <SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow />
-                                </>
-                            ) : paginatedLeads.length === 0 ? (
-                                <tr>
-                                    <td colSpan="4" className="px-6 py-16 text-center">
-                                        <div className="flex flex-col items-center justify-center space-y-3">
-                                            <div className="bg-slate-100 p-4 rounded-full text-slate-400">
-                                                <FileX size={32} />
+                                <><SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow /></>
+                            ) : leads.length === 0 ? (
+                                <tr><td colSpan="7" className="py-16 text-center">
+                                    <div className="flex flex-col items-center gap-3">
+                                        <div className="p-4 bg-slate-100 rounded-full text-slate-400"><FileX size={28} /></div>
+                                        <p className="font-semibold text-slate-600">No leads found</p>
+                                        <p className="text-sm text-slate-400">Try clearing your filters or add a new lead.</p>
+                                    </div>
+                                </td></tr>
+                            ) : leads.map(lead => (
+                                <tr key={lead._id} className={`group hover:bg-purple-50/40 transition-colors ${isOverdue(lead.nextFollowUpDate) && lead.status !== 'converted' ? 'border-l-2 border-l-red-400' : ''}`}>
+                                    <td className="px-5 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-full bg-purple-100 text-purple-700 font-bold flex items-center justify-center text-sm shrink-0">
+                                                {lead.name.charAt(0).toUpperCase()}
                                             </div>
-                                            <p className="text-slate-600 font-medium">No leads match your criteria.</p>
-                                            <p className="text-slate-400 text-sm">Try adjusting your filters or search term.</p>
+                                            <div className="min-w-0">
+                                                <p className="font-semibold text-slate-800 truncate">{lead.name}</p>
+                                                <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
+                                                    <Mail size={11} /><span className="truncate">{lead.email}</span>
+                                                </div>
+                                                {lead.phone && <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5"><Phone size={11} /><span>{lead.phone}</span></div>}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-5 py-4 font-semibold text-slate-700">
+                                        ${lead.dealValue?.toLocaleString() || 0}
+                                    </td>
+                                    <td className="px-5 py-4">
+                                        <div className="relative">
+                                            {actionLoading === `stage-${lead._id}` && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 animate-spin text-purple-500" size={12} />}
+                                            <select value={lead.stage || 'new'} onChange={e => handleStageChange(lead._id, e.target.value)}
+                                                disabled={actionLoading === `stage-${lead._id}` || lead.status === 'converted'}
+                                                className={`text-xs font-bold px-3 py-1.5 rounded-lg border-0 cursor-pointer focus:ring-2 focus:ring-purple-400 appearance-none disabled:opacity-60 ${STAGE_STYLES[lead.stage] || STAGE_STYLES.new}`}>
+                                                <option value="new">New</option>
+                                                <option value="contacted">Contacted</option>
+                                                <option value="qualified">Qualified</option>
+                                                <option value="interested">Interested</option>
+                                                <option value="proposal">Proposal</option>
+                                                <option value="won">Won</option>
+                                                <option value="lost">Lost</option>
+                                            </select>
+                                        </div>
+                                    </td>
+                                    <td className="px-5 py-4">
+                                        {lead.status === 'converted' ? (
+                                            <span className="px-3 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 uppercase">Converted</span>
+                                        ) : (
+                                            <div className="relative">
+                                                {actionLoading === `status-${lead._id}` && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 animate-spin text-purple-500" size={12} />}
+                                                <select value={lead.status} onChange={e => handleStatusChange(lead._id, e.target.value)}
+                                                    disabled={actionLoading === `status-${lead._id}`}
+                                                    className={`text-xs font-bold px-3 py-1.5 rounded-lg border cursor-pointer focus:ring-2 focus:ring-purple-400 appearance-none disabled:opacity-60 ${STATUS_STYLES[lead.status]}`}>
+                                                    <option value="new">New</option>
+                                                    <option value="contacted">Contacted</option>
+                                                </select>
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="px-5 py-4">
+                                        <button onClick={() => setEditingLead({ ...lead })} className="group/btn flex items-center gap-2 text-sm hover:text-purple-600 transition">
+                                            {lead.nextFollowUpDate ? (
+                                                <span className={`flex items-center gap-1.5 font-medium ${isOverdue(lead.nextFollowUpDate) ? 'text-red-500' : isDueToday(lead.nextFollowUpDate) ? 'text-orange-500' : 'text-slate-600'}`}>
+                                                    <Calendar size={14} />
+                                                    {isOverdue(lead.nextFollowUpDate) ? '⚠ Overdue' : isDueToday(lead.nextFollowUpDate) ? '🔔 Today' : new Date(lead.nextFollowUpDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-400 flex items-center gap-1.5"><StickyNote size={14} /> Add Note</span>
+                                            )}
+                                        </button>
+                                    </td>
+                                    <td className="px-5 py-4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                                                {lead.assignedTo?.name?.charAt(0).toUpperCase() || '?'}
+                                            </div>
+                                            <span className="text-sm text-slate-700 font-medium">{lead.assignedTo?.name || 'Unassigned'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-5 py-4">
+                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {lead.status !== 'converted' && (
+                                                <button onClick={() => convertToClient(lead._id)} disabled={actionLoading === `convert-${lead._id}`}
+                                                    className="flex items-center gap-1.5 text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-xs font-bold transition disabled:opacity-50">
+                                                    {actionLoading === `convert-${lead._id}` ? <Loader2 className="animate-spin" size={14} /> : <><ArrowRightCircle size={14} /> Convert</>}
+                                                </button>
+                                            )}
+                                            {isAdmin && (
+                                                <button onClick={() => handleDelete(lead._id)} disabled={actionLoading === `delete-${lead._id}`}
+                                                    className="text-red-400 hover:bg-red-50 hover:text-red-600 p-2 rounded-lg transition disabled:opacity-50">
+                                                    {actionLoading === `delete-${lead._id}` ? <Loader2 className="animate-spin" size={14} /> : <Trash2 size={14} />}
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
-                            ) : (
-                                paginatedLeads.map(lead => (
-                                    <tr key={lead._id} className="hover:bg-purple-50/50 transition-colors group">
-
-                                        <td className="px-6 py-4 max-w-[200px]">
-                                            <div className="flex items-start space-x-3">
-                                                <div className="bg-slate-100 p-2 rounded-lg text-slate-500 mt-0.5"><User size={18} /></div>
-                                                <div className="truncate">
-                                                    <p className="font-semibold text-slate-800 truncate">{lead.name}</p>
-                                                    <div className="flex items-center text-xs text-slate-500 space-x-1 mt-1 truncate"><Mail size={12} /> <span className="truncate">{lead.email}</span></div>
-                                                    {lead.phone && <div className="flex items-center text-xs text-slate-500 space-x-1 mt-0.5"><Phone size={12} /> <span>{lead.phone}</span></div>}
-                                                </div>
-                                            </div>
-                                        </td>
-
-                                        <td className="px-6 py-4">
-                                            {lead.status === 'converted' ? (
-                                                <span className="px-4 py-1.5 inline-flex text-xs leading-5 font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 uppercase">
-                                                    Converted
-                                                </span>
-                                            ) : (
-                                                <div className="relative inline-block w-40">
-                                                    {actionLoading === `status-${lead._id}` && <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-purple-500 animate-spin" size={14} />}
-                                                    <select
-                                                        value={lead.status}
-                                                        onChange={(e) => handleStatusChange(lead._id, e.target.value)}
-                                                        disabled={actionLoading === `status-${lead._id}`}
-                                                        className={`w-full appearance-none border rounded-lg px-4 py-1.5 text-xs font-bold uppercase transition focus:ring-2 focus:ring-purple-500 ${lead.status === 'new' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-orange-100 text-orange-800 border-orange-200'
-                                                            } disabled:opacity-50 cursor-pointer`}
-                                                    >
-                                                        <option value="new">🆕 New</option>
-                                                        <option value="contacted">📞 Contacted</option>
-                                                    </select>
-                                                </div>
-                                            )}
-                                        </td>
-
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center space-x-2">
-                                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">
-                                                    {lead.assignedTo?.name?.charAt(0).toUpperCase() || '?'}
-                                                </div>
-                                                <div className="text-sm">
-                                                    <p className="font-medium text-slate-700">{lead.assignedTo?.name || 'Unassigned'}</p>
-                                                    {isAdmin && <p className="text-xs text-slate-400">Rep ID: {lead.assignedTo?._id?.substring(0, 6) || ''}</p>}
-                                                </div>
-                                            </div>
-                                        </td>
-
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center justify-end space-x-3 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                                                {lead.status !== 'converted' && (
-                                                    <button
-                                                        onClick={() => convertToClient(lead._id)}
-                                                        disabled={actionLoading === `convert-${lead._id}`}
-                                                        className="bg-slate-100 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 font-medium px-3 py-1.5 rounded-lg flex items-center space-x-1.5 text-sm transition disabled:opacity-50"
-                                                    >
-                                                        {actionLoading === `convert-${lead._id}` ? <Loader2 className="animate-spin" size={16} /> : <><ArrowRightCircle size={16} /> <span>Convert</span></>}
-                                                    </button>
-                                                )}
-                                                {isAdmin && (
-                                                    <button
-                                                        onClick={() => handleDelete(lead._id)}
-                                                        disabled={actionLoading === `delete-${lead._id}`}
-                                                        className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition disabled:opacity-50"
-                                                        title="Delete Lead"
-                                                    >
-                                                        {actionLoading === `delete-${lead._id}` ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </td>
-
-                                    </tr>
-                                ))
-                            )}
+                            ))}
                         </tbody>
                     </table>
                 </div>
 
-                {/* Pagination Footer */}
-                {!isLoading && filteredLeads.length > 0 && (
+                {/* Pagination */}
+                {!isLoading && totalLeads > itemsPerPage && (
                     <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between">
                         <p className="text-sm text-slate-500">
-                            Showing <span className="font-semibold text-slate-700">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-semibold text-slate-700">{Math.min(currentPage * itemsPerPage, filteredLeads.length)}</span> of <span className="font-semibold text-slate-700">{filteredLeads.length}</span> results
+                            {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, totalLeads)} of {totalLeads} leads
                         </p>
-                        <div className="flex space-x-2">
-                            <button onClick={handlePrev} disabled={currentPage === 1} className="p-2 border border-slate-200 rounded-lg hover:bg-white text-slate-600 disabled:opacity-50 disabled:hover:bg-transparent transition">
-                                <ChevronLeft size={18} />
+                        <div className="flex gap-2">
+                            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                                className="p-2 border border-slate-200 rounded-lg hover:bg-white text-slate-600 disabled:opacity-40 transition">
+                                <ChevronLeft size={16} />
                             </button>
-                            <div className="px-4 py-2 text-sm font-medium text-slate-700 flex items-center">
-                                Page {currentPage} of {totalPages}
-                            </div>
-                            <button onClick={handleNext} disabled={currentPage === totalPages} className="p-2 border border-slate-200 rounded-lg hover:bg-white text-slate-600 disabled:opacity-50 disabled:hover:bg-transparent transition">
-                                <ChevronRight size={18} />
+                            <span className="px-4 py-2 text-sm font-medium text-slate-700">Page {currentPage} of {totalPages}</span>
+                            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+                                className="p-2 border border-slate-200 rounded-lg hover:bg-white text-slate-600 disabled:opacity-40 transition">
+                                <ChevronRight size={16} />
                             </button>
                         </div>
                     </div>
                 )}
-
             </div>
         </div>
     );

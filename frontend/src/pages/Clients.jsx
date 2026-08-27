@@ -1,7 +1,8 @@
 import { useEffect, useState, useContext } from 'react';
 import api from '../services/api.js';
 import AuthContext from '../context/AuthContext.jsx';
-import { UserCheck, Phone, Mail, History, Loader2, ArrowUpRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { UserCheck, Phone, Mail, History, Loader2, ArrowUpRight, ExternalLink } from 'lucide-react';
 
 const Clients = () => {
     const { user } = useContext(AuthContext);
@@ -13,7 +14,7 @@ const Clients = () => {
             try {
                 setIsLoading(true);
                 const res = await api.get('/clients');
-                setClients(res.data.data.reverse());
+                setClients(res.data.data || []);
             } catch (error) {
                 console.error('Error fetching clients:', error);
             } finally {
@@ -70,6 +71,12 @@ const Clients = () => {
                                     <span className="text-xs text-slate-500 font-medium truncate">Converted from Setup Lead: {client.convertedFrom.name || client.convertedFrom}</span>
                                 </div>
                             )}
+                            <div className="pt-4 mt-4 border-t border-slate-100 flex justify-between items-center text-xs text-slate-400">
+                                <span>Converted from Lead</span>
+                                <Link to={`/clients/${client._id}`} className="font-bold text-purple-600 hover:text-purple-700 flex items-center gap-1 transition">
+                                    <ExternalLink size={14} /> Open 360° Profile
+                                </Link>
+                            </div>
                         </div>
                     </div>
                 ))}

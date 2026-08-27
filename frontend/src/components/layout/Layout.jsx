@@ -1,18 +1,19 @@
-import React from 'react';
 import Sidebar from './Sidebar.jsx';
-import Navbar from './Navbar.jsx';
+import AppNavbar from './AppNavbar.jsx';
 
 const Layout = ({ children }) => {
     return (
-        <div className="min-h-screen bg-slate-50 font-sans flex text-slate-800">
-            {/* Sidebar reserved space for desktop */}
+        <div className="flex h-screen overflow-hidden bg-slate-50 font-sans">
+            {/* Fixed Sidebar */}
             <Sidebar />
 
-            {/* Main content shifted right */}
-            <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
-                <Navbar />
-                <main className="flex-1 p-6 overflow-auto relative">
-                    <div className="mx-auto w-full max-w-7xl">
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col md:ml-64 relative min-w-0">
+                <AppNavbar />
+
+                {/* Scrollable Content Container */}
+                <main className="flex-1 overflow-x-hidden overflow-y-auto">
+                    <div className="w-full max-w-7xl mx-auto px-4 py-8 md:px-8">
                         {children}
                     </div>
                 </main>
@@ -20,4 +21,5 @@ const Layout = ({ children }) => {
         </div>
     );
 };
+
 export default Layout;

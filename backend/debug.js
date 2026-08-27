@@ -5,7 +5,7 @@ import Project from "../models/Project.js";
 
 // Named getDashboardStats to match existing route import
 export const getDashboardStats = async (req, res) => {
-    try {
+    
         const totalLeads = await Lead.countDocuments({ deletedAt: null });
         const convertedLeads = await Lead.countDocuments({ status: "converted", deletedAt: null });
         const totalClients = await Client.countDocuments();
@@ -80,8 +80,8 @@ export const getDashboardStats = async (req, res) => {
                 followUpsTodayCount,
             },
         });
-    } catch (error) {
-        console.error("Dashboard error:", error);
-        res.status(500).json({ success: false, message: error.message, stack: error.stack });
+    );
     }
 };
+
+module.exports = { getDashboardStats };

@@ -4,11 +4,14 @@ import { Toaster } from 'react-hot-toast';
 import AuthContext, { AuthProvider } from './context/AuthContext.jsx';
 
 import Layout from './components/layout/Layout.jsx';
-import Login from './pages/Login.jsx';
-import Register from './pages/Register.jsx';
+import LandingPage from './pages/LandingPage.jsx';
+import RegisterPage from './pages/RegisterPage.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Leads from './pages/Leads.jsx';
 import Clients from './pages/Clients.jsx';
+import ClientDetails from './pages/ClientDetails.jsx';
+import Projects from './pages/Projects.jsx';
+import ProjectDetails from './pages/ProjectDetails.jsx';
 
 const NotFound = () => (
     <div className="flex flex-col items-center justify-center h-[70vh] text-center">
@@ -23,10 +26,11 @@ const NotFound = () => (
 
 const PrivateRoute = ({ children }) => {
     const { user } = useContext(AuthContext);
-    return user ? <Layout>{children}</Layout> : <Navigate to="/login" />;
+    return user ? <Layout>{children}</Layout> : <Navigate to="/" />;
 };
 
 function AppRoutes() {
+    const { user } = useContext(AuthContext);
     return (
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <Toaster
@@ -38,11 +42,14 @@ function AppRoutes() {
                 }}
             />
             <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+                <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+                <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+                <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
                 <Route path="/leads" element={<PrivateRoute><Leads /></PrivateRoute>} />
                 <Route path="/clients" element={<PrivateRoute><Clients /></PrivateRoute>} />
+                <Route path="/clients/:id" element={<PrivateRoute><ClientDetails /></PrivateRoute>} />
+                <Route path="/projects" element={<PrivateRoute><Projects /></PrivateRoute>} />
+                <Route path="/projects/:id" element={<PrivateRoute><ProjectDetails /></PrivateRoute>} />
                 <Route path="*" element={<PrivateRoute><NotFound /></PrivateRoute>} />
             </Routes>
         </Router>

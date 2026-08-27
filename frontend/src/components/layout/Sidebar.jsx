@@ -1,9 +1,13 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCheck, Briefcase, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, UserCheck, Briefcase, Settings, LogOut } from 'lucide-react';
+import { useContext } from 'react';
+import AuthContext from '../../context/AuthContext.jsx';
 
 const Sidebar = () => {
+    const { logout } = useContext(AuthContext);
+
     const navItems = [
-        { name: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/' },
+        { name: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/dashboard' },
         { name: 'Leads', icon: <Users size={20} />, path: '/leads' },
         { name: 'Clients', icon: <UserCheck size={20} />, path: '/clients' },
         { name: 'Projects', icon: <Briefcase size={20} />, path: '/projects' },
@@ -11,10 +15,10 @@ const Sidebar = () => {
     ];
 
     return (
-        <aside className="w-64 bg-slate-900 text-slate-300 h-screen fixed left-0 top-0 hidden md:flex flex-col z-20">
+        <aside className="w-64 bg-slate-900 text-slate-300 h-screen fixed left-0 top-0 hidden md:flex flex-col z-20 shadow-2xl">
             <div className="h-16 flex items-center px-6 border-b border-slate-800">
                 <div className="flex items-center gap-2 text-white font-bold text-xl tracking-wide">
-                    <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center text-sm shadow-sm ring-2 ring-purple-600/30">
+                    <div className="w-8 h-8 rounded-xl bg-purple-600 flex items-center justify-center text-sm shadow-md ring-2 ring-purple-600/30">
                         ⚡
                     </div>
                     <span>CRM Pro</span>
@@ -22,14 +26,14 @@ const Sidebar = () => {
             </div>
 
             <nav className="flex-1 overflow-y-auto py-6">
-                <ul className="space-y-1.5 px-3">
+                <ul className="space-y-2 px-4">
                     {navItems.map((item) => (
                         <li key={item.name}>
                             <NavLink
                                 to={item.path}
                                 className={({ isActive }) =>
-                                    `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${isActive
-                                        ? 'bg-purple-600 text-white font-medium shadow-md shadow-purple-900/50'
+                                    `flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${isActive
+                                        ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
                                         : 'hover:bg-slate-800 hover:text-white'
                                     }`
                                 }
@@ -41,8 +45,14 @@ const Sidebar = () => {
                     ))}
                 </ul>
             </nav>
-            <div className="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">
-                CRM MVP &copy; {new Date().getFullYear()}
+
+            <div className="p-4 border-t border-slate-800">
+                <button
+                    onClick={logout}
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 font-bold text-sm transition-colors"
+                >
+                    <LogOut size={16} /> Logout
+                </button>
             </div>
         </aside>
     );
