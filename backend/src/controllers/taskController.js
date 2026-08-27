@@ -1,6 +1,7 @@
 import Task from "../models/Task.js";
 import Project from "../models/Project.js";
 import Activity from "../models/Activity.js";
+import Notification from "../models/Notification.js";
 
 // @desc    Get tasks for a project
 // @route   GET /api/tasks?projectId=
@@ -48,7 +49,18 @@ export const createTask = async (req, res) => {
             createdBy: req.user.id
         });
 
-        await updateProjectProgress(project);
+        if (assignedTo && assignedTo.toString() !== req.user.id) {
+            const notif = await Notification.create({
+                userId: assignedTo,
+                type: "task_assigned",
+                message: `You have been assigned a new task: "${title}"`,
+                link: `/projects/${finalProject}`
+            });
+            const io = req.app.get("io");
+            if (io) io.to(assignedTo.toString()).emit("new_notification", notif);
+        }
+
+        await updateProjectProgress(project || projectId);
 
         res.status(201).json({ success: true, message: "Task created", data: task });
     } catch (error) {
@@ -61,8 +73,23 @@ export const createTask = async (req, res) => {
 // @access  Private
 export const updateTask = async (req, res) => {
     try {
+        const originalTask = await Task.findById(req.params.id);
         const task = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
         if (!task) return res.status(404).json({ success: false, message: "Task not found" });
+
+        const projectId = task.project || task.projectId;
+
+        // Notify if assigned to a new user
+        if (req.body.assignedTo && req.body.assignedTo.toString() !== originalTask.assignedTo?.toString() && req.body.assignedTo.toString() !== req.user.id) {
+            const notif = await Notification.create({
+                userId: req.body.assignedTo,
+                type: "task_assigned",
+                message: `You were reassigned to task: "${task.title}"`,
+                link: `/projects/${projectId}`
+            });
+            const io = req.app.get("io");
+            if (io) io.to(req.body.assignedTo.toString()).emit("new_notification", notif);
+        }
 
         if (req.body.status) {
             await Activity.create({
