@@ -6,14 +6,19 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
 
     useEffect(() => {
-        // Check if user is stored in localStorage on load
         const storedUser = localStorage.getItem('crm_user');
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
+        if (storedUser && storedUser !== "undefined") {
+            try {
+                setUser(JSON.parse(storedUser));
+            } catch (error) {
+                console.error("Corrupted local storage data. Clearing crm_user session.", error);
+                localStorage.removeItem('crm_user');
+            }
         }
     }, []);
 
     const login = (userData) => {
+        if (!userData) return;
         setUser(userData);
         localStorage.setItem('crm_user', JSON.stringify(userData));
     };
