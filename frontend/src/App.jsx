@@ -6,6 +6,7 @@ import AuthContext, { AuthProvider } from './context/AuthContext.jsx';
 import Layout from './components/layout/Layout.jsx';
 import LandingPage from './pages/LandingPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
+import LoginPage from './pages/LoginPage.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Leads from './pages/Leads.jsx';
 import Clients from './pages/Clients.jsx';
@@ -43,6 +44,7 @@ function AppRoutes() {
             />
             <Routes>
                 <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+                <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
                 <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
                 <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
                 <Route path="/leads" element={<PrivateRoute><Leads /></PrivateRoute>} />
