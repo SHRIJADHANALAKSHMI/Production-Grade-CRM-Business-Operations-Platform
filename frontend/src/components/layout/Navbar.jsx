@@ -26,7 +26,7 @@ const Navbar = () => {
                     <button className="hidden sm:block px-5 py-2.5 rounded-xl font-semibold text-purple-600 border-2 border-purple-100 hover:border-purple-600/30 hover:bg-purple-50 transition-all">
                         Request Demo
                     </button>
-                    <Link to="/" className="px-5 py-2.5 rounded-xl font-semibold text-white bg-purple-600 hover:bg-purple-700 shadow-md shadow-purple-600/20 hover:shadow-lg hover:shadow-purple-600/30 transition-all">
+                    <Link to="/login" className="px-5 py-2.5 rounded-xl font-semibold text-white bg-purple-600 hover:bg-purple-700 shadow-md shadow-purple-600/20 hover:shadow-lg hover:shadow-purple-600/30 transition-all">
                         Login
                     </Link>
                 </div>
