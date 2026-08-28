@@ -21,6 +21,45 @@ export const getClients = async (req, res) => {
     }
 };
 
+// @desc    Create new client
+// @route   POST /api/clients
+// @access  Private
+export const createClient = async (req, res) => {
+    try {
+        const { name, email, phone, convertedFrom, sourceLead, assignedTo } = req.body;
+
+        let clientData = {
+            name, email, phone, convertedFrom, sourceLead,
+            assignedTo: assignedTo || req.user.id
+        };
+
+        const client = await Client.create(clientData);
+        res.status(201).json({ success: true, message: "Client created successfully", data: client });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message, data: null });
+    }
+};
+
+// @desc    Update client
+// @route   PUT /api/clients/:id
+// @access  Private
+export const updateClient = async (req, res) => {
+    try {
+        let filter = { _id: req.params.id };
+        if (req.user.role === "Sales") filter.assignedTo = req.user.id;
+
+        const client = await Client.findOneAndUpdate(filter, req.body, {
+            new: true, runValidators: true
+        });
+
+        if (!client) return res.status(404).json({ success: false, message: "Client not found", data: null });
+
+        res.status(200).json({ success: true, message: "Client updated successfully", data: client });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message, data: null });
+    }
+};
+
 // @desc    Get client by ID
 // @route   GET /api/clients/:id
 // @access  Private
